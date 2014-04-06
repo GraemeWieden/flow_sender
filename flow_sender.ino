@@ -11,14 +11,14 @@ byte sensorInterrupt = 0;  // 0 = pin 2; 1 = pin 3
 
 // The flow sensor outputs approximately 4.5 pulses per second at one litre per minute of flow.
 // This is the value we need to adjust after doing the 'real' calibration of the sensor
-float calibrationFactor = 4.5;
+float calibrationFactor = 3.97;
 
 // set up the sensor 
 volatile byte sensorCount;  
 
 float flowRate;
-unsigned int litresPerMin;
-unsigned int totalLitres;
+unsigned int mLPerMin;
+float totalLitres;
 
 unsigned long pollInterval;
 unsigned long lastPollTime;
@@ -29,7 +29,7 @@ void setup()
 {
   sensorCount = 0;
   flowRate = 0.0;
-  litresPerMin = 0;
+  mLPerMin = 0;
   totalLitres = 0;
   lastPollTime = 0;
   pollInterval = 3000; // 1 second poll interval
@@ -56,11 +56,11 @@ void loop()
     flowRate = ((1000.0 / (millis() - lastPollTime)) * sensorCount) / calibrationFactor;
     lastPollTime = millis();
     
-    litresPerMin = flowRate;
-    totalLitres += litresPerMin;
+    mLPerMin = flowRate * 1000;
+    totalLitres += (flowRate / (60000.0 / (float)pollInterval));
     
     // send: content, house, channel, value A, value B
-    sendB00Packet(0, 1, 2, litresPerMin, totalLitres);  
+    sendB00Packet(0, 1, 2, mLPerMin, (int)(totalLitres * 1000.0));  
     
     // blink led
     digitalWrite(ledPort, HIGH);
