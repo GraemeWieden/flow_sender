@@ -1,3 +1,18 @@
+#include <LiquidCrystal.h>
+
+// Connections:
+// VSS (LCD pin 1) to ground
+// VDD (LCD pin 2) to +5V
+// V0 (LCD pin 3) to ground via 10K resistor - LCD display contrast 
+// RS (LCD pin 4) to Arduino pin 12
+// RW (LCD pin 5) to Arduino pin 11
+// E (LCD pin 6) to Arduino pin 10
+// D4, D5, D6, D7 (LCD pins 11, 12, 13, 14) to Arduino pins 6, 5, 4, 3
+// A (LCD pin 15) to Arduino pin +5V via resistor if necessary - LCD backlight brightness
+// K (LCD pin 16) to ground
+
+LiquidCrystal lcd(12, 11, 10, 6, 5, 4, 3);
+
 // set up the B00 protocol transmission values
 int TriggerPulse = 15000; // trigger time in microseconds
 int LongPulse = 1000; // time in microseconds for a long pulse
@@ -19,6 +34,7 @@ volatile byte sensorCount;
 float flowRate;
 unsigned int mLPerMin;
 float totalLitres;
+char buffer[10];
 
 unsigned long pollInterval;
 unsigned long lastPollTime;
@@ -27,12 +43,19 @@ unsigned long lastSendTime;
 
 void setup()
 {
+  // setup LCD and display version info
+  lcd.begin(16,2);
+  lcd.clear();
+  lcdPrint(0, 0, "Flow Monitor");
+  lcdPrint(0, 1, "Version 1.0");
+  delay(250);   
+      
   sensorCount = 0;
   flowRate = 0.0;
   mLPerMin = 0;
   totalLitres = 0;
   lastPollTime = 0;
-  pollInterval = 3000; // 1 second poll interval
+  pollInterval = 500; // half second poll interval
 
   // these aren't in use yet. soon i'll change it so that the calculations are done each second 
   // but we'll only transmit every 10 or so seconds.
@@ -46,8 +69,8 @@ void setup()
 }
 
 void loop()
-{
-  if((millis() - lastPollTime) > pollInterval)    // Only process counters once per second
+{ 
+  if((millis() - lastPollTime) > pollInterval)    // Only process counters once per specified interval
   { 
     // Disable the interrupt while calculating flow rate and sending data
     detachInterrupt(sensorInterrupt);
@@ -59,16 +82,30 @@ void loop()
     mLPerMin = flowRate * 1000;
     totalLitres += (flowRate / (60000.0 / (float)pollInterval));
     
-    // send: content, house, channel, value A, value B
-    sendB00Packet(0, 1, 2, mLPerMin, (int)(totalLitres * 1000.0));  
+    // display data on LCD screen
+    dtostrf(flowRate, 5 , 3 , buffer);
+    lcdPrint(0, 0, "F: " + String(buffer) + " L/min      ");
+    //dtostrf(totalLitres, 1 ,0 , buffer);
+    dtostrf(totalLitres, 5 ,3 , buffer);
+    lcdPrint(0, 1, "T: " + String(buffer) + " L          ");
     
-    // blink led
-    digitalWrite(ledPort, HIGH);
-    delay(50);   
-    digitalWrite(ledPort, LOW);
+    if((millis() - lastSendTime) > sendInterval)    // transmit the data at the specified interval 
+    { 
+      lastSendTime = millis();
+      // we're going to send the number of litres / 10 as that allows us to send a value 
+      // up to about 655 kilolitres with a precision of 10 litres.
+      
+      // send: content, house, channel, value A, value B
+      sendB00Packet(0, 1, 2, mLPerMin, (unsigned int)(totalLitres / 10));  
+      
+      // blink the led
+      digitalWrite(ledPort, HIGH);
+      delay(30);   
+      digitalWrite(ledPort, LOW);
+    }
     
     // Reset the sensor counter
-    sensorCount = 0;
+    sensorCount = 40;
     
     // Enable the interrupt again now that we've finished sending output
     attachInterrupt(sensorInterrupt, pulseCounter, FALLING);
@@ -80,57 +117,9 @@ void pulseCounter()
   sensorCount++;
 }
 
-void sendB00Packet(int content, int house, int channel, int valueA, int valueB)
+void lcdPrint(int x, int y, String text)
 {
-  int repeats = 2;
-  
-  sendB00Trigger();
-  for(int i = 0; i < repeats; i++)
-  {
-    sendB00Bits(0xB, 4); // announce!
-    sendB00Bits(content, 8); // default 00
-    sendB00Bits(house, 2);
-    sendB00Bits(channel, 2);
-    sendB00Bits(valueA, 16);
-    sendB00Bits(valueB, 16);
-    sendB00Trigger();
-  }
-}
-
-void sendB00Trigger()
-{
-  digitalWrite(txPort, HIGH);
-  delayMicroseconds(TriggerPulse);   
-  digitalWrite(txPort, LOW);
-  delayMicroseconds(TriggerPulse);    
-}
-
-void sendB00Bits(unsigned int data, int bits)
-{
-  unsigned int bitMask = 1;
-  bitMask = bitMask << (bits - 1);
-  for(int i = 0; i < bits; i++)
-  {
-    sendB00Bit( (data&bitMask) == 0 ? 0 : 1);
-    bitMask = bitMask >> 1;
-  }
-}
-
-void sendB00Bit(byte b)
-{
-  if(b == 0)
-  {
-    digitalWrite(txPort, HIGH);
-    delayMicroseconds(ShortPulse);
-    digitalWrite(txPort, LOW);
-    delayMicroseconds(LongPulse);  
-  }
-  else // any bit in the byte is on
-  {
-    digitalWrite(txPort, HIGH);
-    delayMicroseconds(LongPulse);
-    digitalWrite(txPort, LOW);
-    delayMicroseconds(ShortPulse);  
-  }
+  lcd.setCursor(x, y);
+  lcd.print( text );
 }
 
