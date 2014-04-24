@@ -1,3 +1,4 @@
+#include <EEPROM.h>
 #include <LiquidCrystal.h>
 
 // Connections:
@@ -43,6 +44,11 @@ unsigned long lastSendTime;
 
 void setup()
 {
+  // if there is data in the EEPROM, then a value for totalLitres has been stored so read it back in
+  totalLitres = readFloat();
+  if (isnan(totalLitres))
+    totalLitres = 0;
+    
   // setup LCD and display version info
   lcd.begin(16,2);
   lcd.clear();
@@ -53,7 +59,7 @@ void setup()
   sensorCount = 0;
   flowRate = 0.0;
   mLPerMin = 0;
-  totalLitres = 0;
+  // totalLitres = 0;
   lastPollTime = 0;
   pollInterval = 500; // half second poll interval
 
@@ -81,7 +87,7 @@ void loop()
     
     mLPerMin = flowRate * 1000;
     totalLitres += (flowRate / (60000.0 / (float)pollInterval));
-    
+
     // display data on LCD screen
     dtostrf(flowRate, 5 , 3 , buffer);
     lcdPrint(0, 0, "F: " + String(buffer) + " L/min      ");
@@ -98,6 +104,10 @@ void loop()
       // send: content, house, channel, value A, value B
       sendB00Packet(0, 1, 2, mLPerMin, (unsigned int)(totalLitres / 10));  
       
+      // note that we should write to EEPROM sparingly as the memory is only guaranteed for 100,000 writes
+      // so at 5 second intervals, that's only about a year.
+      storeFloat(totalLitres);
+          
       // blink the led
       digitalWrite(ledPort, HIGH);
       delay(30);   
@@ -123,3 +133,18 @@ void lcdPrint(int x, int y, String text)
   lcd.print( text );
 }
 
+void storeFloat(float value)
+{
+    byte* p = (byte*)(void*)&value;
+    for (int i = 0; i < sizeof(value); i++)
+        EEPROM.write(i, *p++);
+}
+
+float readFloat()
+{
+    float value = 0.0;
+    byte* p = (byte*)(void*)&value;
+    for (int i = 0; i < sizeof(value); i++)
+        *p++ = EEPROM.read(i);
+    return value;
+}
