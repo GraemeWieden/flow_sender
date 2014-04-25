@@ -5,14 +5,14 @@
 // VSS (LCD pin 1) to ground
 // VDD (LCD pin 2) to +5V
 // V0 (LCD pin 3) to ground via 10K resistor - LCD display contrast 
-// RS (LCD pin 4) to Arduino pin 12
-// RW (LCD pin 5) to Arduino pin 11
-// E (LCD pin 6) to Arduino pin 10
-// D4, D5, D6, D7 (LCD pins 11, 12, 13, 14) to Arduino pins 6, 5, 4, 3
+// RS (LCD pin 4) to Arduino pin 8
+// RW (LCD pin 5) to ground
+// E (LCD pin 6) to Arduino pin 9
+// D4, D5, D6, D7 (LCD pins 11, 12, 13, 14) to Arduino pins 4, 5, 6, 7
 // A (LCD pin 15) to Arduino pin +5V via resistor if necessary - LCD backlight brightness
 // K (LCD pin 16) to ground
 
-LiquidCrystal lcd(12, 11, 10, 6, 5, 4, 3);
+LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
 // set up the B00 protocol transmission values
 int TriggerPulse = 15000; // trigger time in microseconds
@@ -20,7 +20,7 @@ int LongPulse = 1000; // time in microseconds for a long pulse
 int ShortPulse = LongPulse / 3; // time in microseconds for a short pulse
 
 // set up the hardware pins
-byte txPort = 9; // digital pin for transmitter
+byte txPort = 3; // digital pin for transmitter
 byte ledPort = 13; // digital pin for LED
 byte sensorPin = 2;
 byte sensorInterrupt = 0;  // 0 = pin 2; 1 = pin 3
@@ -132,7 +132,8 @@ void loop()
       // up to about 655 kilolitres with a precision of 10 litres.
       
       // send: content, house, channel, value A, value B
-      sendB00Packet(0, 1, 2, mLPerMin, (unsigned int)(totalLitres / 10));  
+      // sendB00Packet(0, 1, 2, mLPerMin, (unsigned int)(totalLitres / 10));  // send tens of litres
+      sendB00Packet(0, 1, 2, mLPerMin, totalLitres); // send litres 
       
       // note that we should write to EEPROM sparingly as the memory is only guaranteed for 100,000 writes
       // so at 10 second intervals, that's only a few weeks.
