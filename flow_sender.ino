@@ -93,8 +93,21 @@ void loop()
 { 
   if((millis() - lastPollTime) > pollInterval)    // Only process counters once per specified interval
   { 
-    // Disable the interrupt while calculating flow rate and sending data
+    // Disable the interrupt while calculating flow rate
     detachInterrupt(sensorInterrupt);
+    
+    // calculate flow rate in litres per minute using the predefined calibrationFactor
+    flowRate = ((1000.0 / (millis() - lastPollTime)) * sensorCount) / calibrationFactor;
+    lastPollTime = millis();
+    // Reset the sensor counter
+    // sensorCount = 40; // set for debugging
+    sensorCount = 0;
+    
+    // Enable the interrupt again
+    attachInterrupt(sensorInterrupt, pulseCounter, FALLING);
+    
+    mLPerMin = flowRate * 1000;
+    totalLitres += (flowRate / (60000.0 / (float)pollInterval));
     
     // Check if the reset button is being held down
     if (analogRead(buttonPin) < 1000)
@@ -119,13 +132,6 @@ void loop()
     {
       resetCount = 0;
     }
-    
-    // calculate flow rate in litres per minute using the predefined calibrationFactor
-    flowRate = ((1000.0 / (millis() - lastPollTime)) * sensorCount) / calibrationFactor;
-    lastPollTime = millis();
-    
-    mLPerMin = flowRate * 1000;
-    totalLitres += (flowRate / (60000.0 / (float)pollInterval));
 
     // display data on LCD screen if not holding the reset button
     if(resetCount == 0)
@@ -162,12 +168,7 @@ void loop()
       delay(30);   
       blinkLed();
     }
-    // Reset the sensor counter
-    // sensorCount = 40; // set for debugging
-    sensorCount = 0;
-    
-    // Enable the interrupt again now that we've finished sending output
-    attachInterrupt(sensorInterrupt, pulseCounter, FALLING);
+
   }
 }
 
