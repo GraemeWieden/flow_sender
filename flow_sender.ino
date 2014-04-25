@@ -24,6 +24,7 @@ byte txPort = 9; // digital pin for transmitter
 byte ledPort = 13; // digital pin for LED
 byte sensorPin = 2;
 byte sensorInterrupt = 0;  // 0 = pin 2; 1 = pin 3
+byte buttonPin = A0; // analog pin to which the reset button is attached
 
 // The flow sensor outputs approximately 4.5 pulses per second at one litre per minute of flow.
 // This is the value we need to adjust after doing the 'real' calibration of the sensor
@@ -42,6 +43,8 @@ unsigned long lastPollTime;
 unsigned long sendInterval;
 unsigned long lastSendTime;
 
+unsigned int resetCount;
+
 void setup()
 {
   // if there is data in the EEPROM, then a value for totalLitres has been stored so read it back in
@@ -55,7 +58,12 @@ void setup()
   lcdPrint(0, 0, "Flow Monitor");
   lcdPrint(0, 1, "Version 1.0");
   delay(250);   
-      
+  
+  // setup the reset button - we'll treat any of the buttons as a reset button
+  pinMode(buttonPin, INPUT);         //ensure button pin is an input
+  digitalWrite(buttonPin, LOW);      //ensure pullup is off on button pin
+  resetCount = 0;                    // incremented while button is held;
+  
   sensorCount = 0;
   flowRate = 0.0;
   mLPerMin = 0;
@@ -81,6 +89,26 @@ void loop()
     // Disable the interrupt while calculating flow rate and sending data
     detachInterrupt(sensorInterrupt);
     
+    // Check if the reset button is being held down
+    if (analogRead(buttonPin) < 1000)
+    {
+      lcdPrint(0, 0, " HOLD TO RESET  ");
+      lcdPrint(0, 1, "  TOTAL USAGE   ");
+      resetCount++;
+      if(resetCount > 5) // trigger reset
+      {
+        lcdPrint(0, 0, "  TOTAL USAGE   ");
+        lcdPrint(0, 1, "     RESET      ");
+        totalLitres = 0;
+        storeFloat(totalLitres);
+        delay(1000);   
+      }
+    }
+    else
+    {
+      resetCount = 0;
+    }
+    
     // calculate flow rate in litres per minute using the predefined calibrationFactor
     flowRate = ((1000.0 / (millis() - lastPollTime)) * sensorCount) / calibrationFactor;
     lastPollTime = millis();
@@ -88,13 +116,15 @@ void loop()
     mLPerMin = flowRate * 1000;
     totalLitres += (flowRate / (60000.0 / (float)pollInterval));
 
-    // display data on LCD screen
-    dtostrf(flowRate, 5 , 3 , buffer);
-    lcdPrint(0, 0, "F: " + String(buffer) + " L/min      ");
-    //dtostrf(totalLitres, 1 ,0 , buffer);
-    dtostrf(totalLitres, 5 ,3 , buffer);
-    lcdPrint(0, 1, "T: " + String(buffer) + " L          ");
-    
+    // display data on LCD screen if not holding the reset button
+    if(resetCount == 0)
+    {
+      dtostrf(flowRate, 5 , 3 , buffer);
+      lcdPrint(0, 0, "F: " + String(buffer) + " L/min      ");
+      dtostrf(totalLitres, 5 ,3 , buffer);
+      lcdPrint(0, 1, "T: " + String(buffer) + " L          ");
+    }
+     
     if((millis() - lastSendTime) > sendInterval)    // transmit the data at the specified interval 
     { 
       lastSendTime = millis();
@@ -105,7 +135,7 @@ void loop()
       sendB00Packet(0, 1, 2, mLPerMin, (unsigned int)(totalLitres / 10));  
       
       // note that we should write to EEPROM sparingly as the memory is only guaranteed for 100,000 writes
-      // so at 5 second intervals, that's only about a year.
+      // so at 10 second intervals, that's only a few weeks.
       storeFloat(totalLitres);
           
       // blink the led
