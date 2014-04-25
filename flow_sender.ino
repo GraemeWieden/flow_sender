@@ -36,12 +36,17 @@ volatile byte sensorCount;
 float flowRate;
 unsigned int mLPerMin;
 float totalLitres;
+float lastSentLitres;
+float lastPersistLitres;
+
 char buffer[10];
 
 unsigned long pollInterval;
 unsigned long lastPollTime;
 unsigned long sendInterval;
 unsigned long lastSendTime;
+unsigned long persistInterval;
+unsigned long lastPersistTime;
 
 unsigned int resetCount;
 
@@ -57,7 +62,7 @@ void setup()
   lcd.clear();
   lcdPrint(0, 0, "Flow Monitor");
   lcdPrint(0, 1, "Version 1.0");
-  delay(250);   
+  delay(500);   
   
   // setup the reset button - we'll treat any of the buttons as a reset button
   pinMode(buttonPin, INPUT);         //ensure button pin is an input
@@ -67,15 +72,17 @@ void setup()
   sensorCount = 0;
   flowRate = 0.0;
   mLPerMin = 0;
-  // totalLitres = 0;
-  lastPollTime = 0;
-  pollInterval = 500; // half second poll interval
 
-  // these aren't in use yet. soon i'll change it so that the calculations are done each second 
-  // but we'll only transmit every 10 or so seconds.
-  // we could also ease the rf traffic by only sending when the values actually change.
-  lastSendTime = 0;
+  pollInterval = 500; // half second poll interval
+  lastPollTime = 0;
+
   sendInterval = 10000; // 10 second send interval
+  lastSendTime = 0;
+  lastSentLitres = 0; // keep track so we only send if total has changed
+
+  persistInterval = 120000; // 2 minute persist interval
+  lastPersistTime = 0;
+  lastPersistLitres = 0; // keep track so we only persist if total has changed
   
   pinMode(sensorPin, INPUT);
   digitalWrite(sensorPin, HIGH);
@@ -99,7 +106,11 @@ void loop()
       {
         lcdPrint(0, 0, "  TOTAL USAGE   ");
         lcdPrint(0, 1, "     RESET      ");
+        
         totalLitres = 0;
+        lastSentLitres = 0;
+        lastPersistLitres = 0;
+        
         storeFloat(totalLitres);
         delay(1000);   
       }
@@ -124,29 +135,36 @@ void loop()
       dtostrf(totalLitres, 5 ,3 , buffer);
       lcdPrint(0, 1, "T: " + String(buffer) + " L          ");
     }
-     
-    if((millis() - lastSendTime) > sendInterval)    // transmit the data at the specified interval 
+    
+    // transmit the data at the specified interval if the totalLitres has changed by more than 1 litre
+    if((millis() - lastSendTime) > sendInterval && (totalLitres - lastSentLitres) > 1)    
     { 
       lastSendTime = millis();
+      lastSentLitres = totalLitres;
       // we're going to send the number of litres / 10 as that allows us to send a value 
       // up to about 655 kilolitres with a precision of 10 litres.
       
       // send: content, house, channel, value A, value B
       // sendB00Packet(0, 1, 2, mLPerMin, (unsigned int)(totalLitres / 10));  // send tens of litres
-      sendB00Packet(0, 1, 2, mLPerMin, totalLitres); // send litres 
+      sendB00Packet(0, 1, 2, mLPerMin, totalLitres); // send litres for testing / debugging
       
-      // note that we should write to EEPROM sparingly as the memory is only guaranteed for 100,000 writes
-      // so at 10 second intervals, that's only a few weeks.
-      storeFloat(totalLitres);
-          
-      // blink the led
-      digitalWrite(ledPort, HIGH);
-      delay(30);   
-      digitalWrite(ledPort, LOW);
+      blinkLed();
     }
-    
+    // persist the total usage to EEPROM at the specified interval if the totalLitres has changed by more than 1 litre
+    if((millis() - lastPersistTime) > persistInterval && (totalLitres - lastPersistLitres) > 1)    
+    { 
+      lastPersistTime = millis();
+      lastPersistLitres = totalLitres;
+      // write to EEPROM sparingly as memory is only guaranteed for 100,000 writes (10 second interval is only a few weeks)
+      storeFloat(totalLitres);
+      // blink the led twice
+      blinkLed();
+      delay(30);   
+      blinkLed();
+    }
     // Reset the sensor counter
-    sensorCount = 40;
+    // sensorCount = 40; // set for debugging
+    sensorCount = 0;
     
     // Enable the interrupt again now that we've finished sending output
     attachInterrupt(sensorInterrupt, pulseCounter, FALLING);
@@ -156,6 +174,14 @@ void loop()
 void pulseCounter()
 {
   sensorCount++;
+}
+
+void blinkLed()
+{
+  // blink the led
+  digitalWrite(ledPort, HIGH);
+  delay(30);   
+  digitalWrite(ledPort, LOW);
 }
 
 void lcdPrint(int x, int y, String text)
