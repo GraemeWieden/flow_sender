@@ -30,6 +30,9 @@ byte buttonPin = A0; // analog pin to which the reset button is attached
 // This is the value we need to adjust after doing the 'real' calibration of the sensor
 float calibrationFactor = 3.97;
 
+int houseCode = 1;
+int channelCode = 2;
+
 // set up the sensor 
 volatile byte sensorCount;  
 
@@ -44,6 +47,7 @@ char buffer[10];
 unsigned long pollInterval;
 unsigned long lastPollTime;
 unsigned long sendInterval;
+unsigned long heartbeatInterval;
 unsigned long lastSendTime;
 unsigned long persistInterval;
 unsigned long lastPersistTime;
@@ -64,6 +68,9 @@ void setup()
   lcdPrint(0, 1, "Version 1.0");
   delay(500);   
   
+  // setup the internal LED for output to show when transmissions or EEPROM writes happen
+  pinMode(ledPort, OUTPUT);  
+    
   // setup the reset button - we'll treat any of the buttons as a reset button
   pinMode(buttonPin, INPUT);         //ensure button pin is an input
   digitalWrite(buttonPin, LOW);      //ensure pullup is off on button pin
@@ -77,6 +84,7 @@ void setup()
   lastPollTime = 0;
 
   sendInterval = 10000; // 10 second send interval
+  heartbeatInterval = 120000; // 2 minute heartbeat interval
   lastSendTime = 0;
   lastSentLitres = 0; // keep track so we only send if total has changed
 
@@ -142,8 +150,8 @@ void loop()
       lcdPrint(0, 1, "T: " + String(buffer) + " L          ");
     }
     
-    // transmit the data at the specified interval if the totalLitres has changed by more than 1 litre
-    if((millis() - lastSendTime) > sendInterval && (totalLitres - lastSentLitres) > 1)    
+    // transmit the data at the specified interval if the totalLitres has changed by more than 0.1 litre
+    if(  (millis() - lastSendTime) > heartbeatInterval || ((millis() - lastSendTime) > sendInterval && (totalLitres - lastSentLitres) > 0.1))    
     { 
       lastSendTime = millis();
       lastSentLitres = totalLitres;
@@ -152,7 +160,7 @@ void loop()
       
       // send: content, house, channel, value A, value B
       // sendB00Packet(0, 1, 2, mLPerMin, (unsigned int)(totalLitres / 10));  // send tens of litres
-      sendB00Packet(0, 1, 2, mLPerMin, totalLitres); // send litres for testing / debugging
+      sendB00Packet(0, houseCode, channelCode, mLPerMin, totalLitres); // send litres for testing / debugging
       
       blinkLed();
     }
