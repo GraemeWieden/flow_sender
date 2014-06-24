@@ -1,5 +1,9 @@
+#include <B00Sender.h>
 #include <EEPROM.h>
 #include <LiquidCrystal.h>
+
+// construct the B00Sender object with default settings
+B00Sender sender;
 
 // Connections:
 // VSS (LCD pin 1) to ground
@@ -20,8 +24,8 @@ int LongPulse = 1000; // time in microseconds for a long pulse
 int ShortPulse = LongPulse / 3; // time in microseconds for a short pulse
 
 // set up the hardware pins
-byte txPort = 3; // digital pin for transmitter
-byte ledPort = 13; // digital pin for LED
+byte txPin = 3; // digital pin for transmitter
+byte ledPin = 13; // digital pin for LED
 byte sensorPin = 2;
 byte sensorInterrupt = 0;  // 0 = pin 2; 1 = pin 3
 byte buttonPin = A0; // analog pin to which the reset button is attached
@@ -56,6 +60,8 @@ unsigned int resetCount;
 
 void setup()
 {
+  sender.setup(txPin, houseCode, channelCode);
+
   // if there is data in the EEPROM, then a value for totalLitres has been stored so read it back in
   totalLitres = readFloat();
   if (isnan(totalLitres))
@@ -69,7 +75,7 @@ void setup()
   delay(500);   
   
   // setup the internal LED for output to show when transmissions or EEPROM writes happen
-  pinMode(ledPort, OUTPUT);  
+  pinMode(ledPin, OUTPUT);  
     
   // setup the reset button - we'll treat any of the buttons as a reset button
   pinMode(buttonPin, INPUT);         //ensure button pin is an input
@@ -157,11 +163,13 @@ void loop()
       lastSentLitres = totalLitres;
       // we're going to send the number of litres / 10 as that allows us to send a value 
       // up to about 655 kilolitres with a precision of 10 litres.
-      
-      // send: content, house, channel, value A, value B
-      // sendB00Packet(0, 1, 2, mLPerMin, (unsigned int)(totalLitres / 10));  // send tens of litres
-      sendB00Packet(0, houseCode, channelCode, mLPerMin, totalLitres); // send litres for testing / debugging
-      
+      // sender.sendB04(mLPerMin, totalLitres); // send litres for testing / debugging
+      sender.sendB04(mLPerMin, (unsigned int)(totalLitres / 10));
+
+      // alternatively, to send the data as two separate values, you could use the following
+      sender.sendB00(flowRate); // floating point flow rate in L/min
+      sender.sendB02(totalLitres); // unsigned long total value in litres
+
       blinkLed();
     }
     // persist the total usage to EEPROM at the specified interval if the totalLitres has changed by more than 1 litre
@@ -176,7 +184,6 @@ void loop()
       delay(30);   
       blinkLed();
     }
-
   }
 }
 
@@ -187,10 +194,9 @@ void pulseCounter()
 
 void blinkLed()
 {
-  // blink the led
-  digitalWrite(ledPort, HIGH);
+  digitalWrite(ledPin, HIGH);
   delay(30);   
-  digitalWrite(ledPort, LOW);
+  digitalWrite(ledPin, LOW);
 }
 
 void lcdPrint(int x, int y, String text)
