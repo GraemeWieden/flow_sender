@@ -30,10 +30,108 @@
 
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
-        
-
-<div id="disqus_thread"></div>
+      <section id="main_content" class="inner"> 
+        <h1>The Project</h1>
+        <p>        The goal of this project is to build a water flow sensor that can monitor instantaneous water flow rate and calculate total water consumption and transmit that data wirelessly to a Ninja Block for display within the Ninja Cloud Dashboard.
+        </p>
+        <p>We're also going to use an LCD display to show the flow rate and consumption.</p>
+        <p>We'll also want to be able to retain the total usage when the hardware is powered down and be able to reset the total water consumption value at any time by pressing and holding a hardware button.    </p>
+        <p>&lt;insert pic of completed project&gt;</p>
+         <h2>           The Challenge<br>
+        </h2>
+         <p>The most difficult part of this project is finding a way to wirelessly send the data from the flow sensor to the Ninja Block in a format that can be interpreted and displayed on the dashboard. </p>
+         <p>Both the standard and rewrite branches of the Ninja Blocks Arduino firmware only support a limited number of RF data encoding protocols. Unfortunately, none of those supported are suitable for our needs, so we have no option but to create a tailored version of the firmware that will decode our protocol and send the decoded data to the dashboard. One of the primary driving factors in the design of our protocol is the need to minimise the changes required to the existing Ninja Blocks Arduino firmware source code.</p>
+        <p>Most Arduinos have less than 32K of available Flash Memory. This is where the program is stored. Unfortunately, the standard Ninja Blocks Arduino firmware (the master branch) uses up almost all of that space leaving precious little for adding new protocols. This 'original' version of the firmware was written using a lot of third party 'libraries' to allow it to do all the things it needs to do. Using existing libraries means the code is generic and usually robust as it has been tried and tested elsewhere. It's also great for rapid development, but the downside is it's usually bigger. This meant that the tiny amount of memory available inside the Arduino was pretty much all used up, so a while back the Ninja Blocks team essentially rewrote the whole Arduino firmware, culling out a heap of unnecessary code, optimising things and basically making the code base smaller and easier to work with and extend. This is called the 'rewrite' branch. You'll find both the standard master and rewrite branches available at the Ninja Blocks GitHub repository here:<br>
+          <a href="https://github.com/ninjablocks/arduino">https://github.com/ninjablocks/arduino</a></p>
+         <p>If you're planning on working with the Arduino code, there are pros and cons of each of the Ninja Blocks Arduino branches. If possible, I'd recommend using the rewrite branch as it splits out each of the supported encoders and decoders into separate files and is much easier to understand. It also is small enough that additional space will be available for your own code. As far as I can determine, the main downside of the rewrite branch is that it sends data between the Arduino and the Ninja Block back-end slightly differently to the master branch meaning the content of the sensor data must be 'interpreted' into it's actual data format at the Ninja Cloud rather than in the Ninja Block itself.</p>
+        <p>For this project, we'll only be using the master branch of the Ninja Blocks Arduino firmware as that is what every Ninja Block will have by default. I'll also provide a link to a modified rewrite firmware that handles reception of the sensor data, however using this branch will require additional work within the Ninja Blocks Dashboard to interpret and display the data.</p>
+         <h2>Building a Protocol - Design Decisions<br>
+        </h2>
+         <p>There were several key factors to consider when designing the communication protocol between the Arduino based sensor and the Ninja Block. The protocol must:</p>
+         <ul>
+           <li>require minimal changes to the Ninja Block Arduino firmware</li>
+           <li>be extensible and support a data payload appropriate for a wide variety of sensors</li>
+           <li>also be able to send and receive sensor data between Arduinos</li>
+           <li>be compatible with the Arduino RCSwitch library, but not be dependent on it</li>
+           <li>be easy to detect and identify valid protocol packets</li>
+           <li>be able to identify corrupt packets using a parity bit</li>
+           <li>support user defined packet repetition counts</li>
+           <li>support user defined house and channel codes in case multiple sensors are in use</li>
+         </ul>
+         <p>From all of these requirements, the B00 protocol was born. It's a custom, general purpose protocol for sending sensor data of various data types via RF between Arduinos as well as a Ninja Block using the custom Ninja Block Arduino firmware.</p>
+        <p>It's called B00 as it says Boo! to announce itself.</p>
+         <h3>Encoding</h3>
+         <p>           The RF encoding scheme used by the B00 protocol is a reasonably 'standard' type that can represent three possible 'signals': a sync, a binary zero and a binary one. Each of these three possible signals is made up of a pair of high and low pulse durations of different lengths like this:</p>
+         <p><img src="images/b00_encoding.png" width="614" height="109"></p>
+        <p>The sync triggers the receiver to detect an incoming packet. It is made up of a short high followed by a very long low. Following the sync (or trigger) is the binary data where zero is represented as short high followed by long low and one is represented as long high followed by short low.<br>
+        </p>
+         <p>The short pulse is one cycle long and is one quarter of the full bit duration. The long pulse is three cycles long or three quarters of the full bit duration. The actual pulse durations are derived from the cycle length which is 300 microseconds. The long pulse length is 3 times the length of the short pulse (900 microseconds). The sync pulse length is 31 times the length of the short pulse length (9.3 milliseconds).<br>
+           This gives us pulse durations of</p>
+         <ul>
+           <li>           9.3 ms sync pulse</li>
+           <li>           0.9 ms long pulse</li>
+           <li>           0.3 ms short pulse</li>
+         </ul>
+         <p>The B00 RF protocol encoding adheres to the system defined as 'Protocol 1' in the commonly used Arduino RCSwitch library.</p>
+        <h3>B00 Code Word</h3>
+        <p>           Aside from the limited remaining memory, the Ninja Blocks Arduino master branch has a limit of 104 'changes' in the RF signal state. Most RF protocols need two state changes to represent one 'bit' of data so that gives us a maximum of 52 bits.</p>
+         <p>The B00 protocol is designed to fit into this constraint so it has a length of 50 bits plus a leading and trailing sync bit. The 50 bit B00 code word (sometimes referred to as a packet) is constructed like this:</p>
+         <ul>
+           <li>           12 bits: B00 to announce and content descriptor</li>
+           <li>           5 bits: 2 bit house code plus 3 bit channel code</li>
+           <li>           32 bits: content</li>
+           <li>           1 bit: even parity</li>
+         </ul>
+         <p><img src="images/b00_codeword.png" width="549" height="113"></p>
+         <p>Even though the B00 encoding is compatible with 'protocol 1' of the RCSwitch library, the base version of RCSwitch can't be used as it only supports up to 32 bit packets. If you intend using RCSwitch to decode the B00 packet, be sure to use the modified version which supports up to 64 bit packets. It can be found here:<br>
+        <a href="https://github.com/GraemeWieden/RCSwitch_64">https://github.com/GraemeWieden/RCSwitch_64</a></p>
+         <p>The 433 MHz frequency can be quite a busy slice of the RF spectrum, with more and more household things using it, and since each transmitting device doesn't know what else is also transmitting at the same time, sometimes transmissions can stomp all over each other. For this reason, the entire code word is repeated four times with each transmission to give it a better chance of being received properly. The repeat count can be changed if necessary, but four repeats should be fine.</p>
+         <h3>Content Descriptor and Data Types</h3>
+         <p>           The B00 protocol is designed to be extensible such that additional content payloads can be supported in future. The content descriptor bits identify the type of data contained in the code word.</p>
+        <p>At present, the content descriptor defines these content types:</p>
+        <ul>
+          <li>B00 : 32 bit double precision floating point value</li>
+          <li>           B01 : 32 bit signed long integer value</li>
+          <li>           B02 : 32 bit unsigned long integer value</li>
+          <li>           B03 : 2 x 16 bit signed integer values</li>
+          <li>           B04 : 2 x 16 bit unsigned integer values</li>
+          <li>        B05 : 4 x 8 bit byte values</li>
+        </ul>
+        <p>The B00 content type carries a double precision floating point value which can range from -3.4028235E+38 to 3.4028235E+38 but it only has a maximum of 6 to 7 decimal digits of precision.</p>
+<p>The B01 content type carries a long integer value which can range from -2,147,483,648 to 2,147,483,647.</p>
+        <p>The B02 content type carries an unsigned long integer value which can range from 0 to 4,294,967,295.</p>
+        <p>The B03 content type carries two integer values each of which can range from -32,768 to 32,767.</p>
+        <p>The B04 content type carries two unsigned integer values each of which can range from 0 to 65,535.</p>
+        <p>The B05 content type carries four byte values each of which can range from 0 to 255.</p>
+        <p>The content type you use will be dependent on the type of data you're working with. For this project, we could wrap up the flow rate (in millilitres per minute) and total usage (in litres) into a single B04 transmission, but to give us more precision and a larger maximum consumption, we're going to use two separate transmissions, a B00 floating point transmission to carry the current flow rate and a B02 unsigned long integer to carry the total consumption.</p>
+        <h3>Other B00 Protocol Features</h3>
+        <p>          As well as the content descriptor and the content itself, the B00 Protocol code word also includes a 2 bit house code (0 to 3) and a 3 bit channel code (0 to 7) allowing you to support up to 32 sets of sensors.</p>
+        <p>          The final bit of the B00 code word is an even parity bit to assist in ensuring data integrity.<br>
+        </p>
+        <h3>Transmission Frequency</h3>
+        <p>           Technically, you could use any frequency transmitter to send the sensor data, however for this project, we'll be using 433 MHz RF as that's what the Ninja Block uses.</p>
+        <h2>The Hardware</h2>
+        <h3>Arduino</h3>
+        <h3>433 MHz Transmitter</h3>
+        <h3>Hall Effect Flow Sensor        </h3>
+        <h3>LED Display / Keypad</h3>
+         <p>&nbsp;</p>
+         <h2>The Software</h2>
+         <pre>#include &lt;B00Sender.h&gt;
+#include &lt;EEPROM.h&gt;
+#include &lt;LiquidCrystal.h&gt;</pre>
+         <p>The EEPROM memory has a specified life of 100,000 write/erase cycles, so you may need to be careful about how often you write to it.</p>
+         <p><br>
+         </p>
+         <p><br>
+           <br>
+           Installation<br>
+           Place (or symbolic link) the B00Sender directory into your Arduino libraries directory located within your Arduino sketchbook directory.</p>
+         <p><br>
+         </p>
+<p></p>
+         <p>&nbsp;</p>
+        <div id="disqus_thread"></div>
 <script type="text/javascript">
     var disqus_shortname = 'graemewieden';
     var disqus_identifier = 'github_flow_sender';
@@ -57,7 +155,7 @@
         <p class="copyright">Flow sender maintained by <a href="https://github.com/GraemeWieden">GraemeWieden</a></p>
         <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
       </footer>
-    </div>
+  </div>
 
     
 
