@@ -18,8 +18,8 @@
         <header class="inner">
           <a id="forkme_banner" href="https://github.com/GraemeWieden/flow_sender">View on GitHub</a>
 
-          <h1 id="project_title">Flow sender</h1>
-          <h2 id="project_tagline">Water flow RF sender</h2>
+          <h1 id="project_title">Wireless Water Flow Sender</h1>
+          <h2 id="project_tagline">Water flow and consumption RF sender for Ninja Block</h2>
 
             <section id="downloads">
               <a class="zip_download_link" href="https://github.com/GraemeWieden/flow_sender/zipball/master">Download this project as a .zip file</a>
@@ -218,9 +218,9 @@ int channelCode = 0; // 0 to 7</code></pre>
          <h3>Getting the Ninja Block Arduino Master B00 Branch         </h3>
          <p>There are currently two 'standard' firmwares available for the Ninja Arduino; the 'master' branch and the 'rewrite' branch. The master branch is the firmware installed on the Ninja Arduino by default. For this project, we'll be using a slightly modified version of the rewrite branch that supports the B00 protocol. You'll need to download this branch from my GitHub repository here:</p>
          <p><a href="https://github.com/GraemeWieden/nb_arduino_master/tree/B00">https://github.com/GraemeWieden/nb_arduino_master/tree/B00</a>         </p>
-         <h3>Making room for it</h3>
+         <h3>Making Room for it</h3>
          <p>Unfortunately, for the BeagleBone  based Ninja Blocks, the standard master branch Arduino firmware is so large that it doesn't allow for any more features to be added without sacrificing some of the existing functionality. Because of this, I've chosen to cull out the hardware port code as I don't have anything physically connected to my BeagleBone  based Ninja Block. This is done by just returning at the start of the <code>doPort1</code>, <code>doPort2</code> and <code>doPort3</code> functions in <code>NinjaObjects.cpp</code> in the <code>NinjaObjects</code> directory. If you'd prefer to keep this functionality, you could instead bypass one of the other RF protocols that you're not using such as <code>doLacrosseTX3</code> or <code>doLacrosseWS2355</code>.</p>
-<h3>The B00 protocol handler</h3>
+<h3>The B00 Protocol Handler</h3>
 <p>The new B00 protocol is added as 'protocol 6' and it is decoded the the <code>doB00</code> function of <code>NinjaObjects/NinjaObjects.cpp</code> in the case of the BeagleBone based Ninja Blocks or in <code>NinjaObjectsPi/NinjaPi.cpp</code> in the case of the Raspberry Pi based Ninja Blocks.</p>
          <h3>Flashing the Ninja Block Arduino</h3>
          <p>It may seem a bit daunting at first to update the firmware on your Arduino however the Ninja Block guys have put together a comprehensive set of instructions on how to do it at this page:</p>
