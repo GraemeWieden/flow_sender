@@ -16,8 +16,8 @@ B00Sender sender;
 // A (LCD pin 15) to Arduino pin +5V via resistor if necessary - LCD backlight brightness
 // K (LCD pin 16) to ground
 
+// construct the LiquidCrystal object using desired pins
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
-
 
 // set up the hardware pins
 byte txPin = 3; // digital pin for transmitter
@@ -26,12 +26,13 @@ byte sensorPin = 2;
 byte sensorInterrupt = 0;  // 0 = pin 2; 1 = pin 3
 byte buttonPin = A0; // analog pin to which the reset button is attached
 
-// The flow sensor outputs approximately 4.5 pulses per second at one litre per minute of flow.
-// This is the value we need to adjust after doing the 'real' calibration of the sensor
+// The flow sensor outputs approximately 4 pulses per second at one litre per minute of flow.
+// This value will need to be modified for the particular flow sensor in use
 float calibrationFactor = 3.97;
 
-int houseCode = 1;
-int channelCode = 1;
+// set the house and channel codes here
+int houseCode = 0; // 0 to 3
+int channelCode = 0; // 0 to 7
 
 // set up the sensor 
 volatile byte sensorCount;  
@@ -42,8 +43,10 @@ float totalLitres;
 float lastSentLitres;
 float lastPersistLitres;
 
+// buffer for strings
 char buffer[10];
 
+// timing variables
 unsigned long pollInterval;
 unsigned long lastPollTime;
 unsigned long sendInterval;
