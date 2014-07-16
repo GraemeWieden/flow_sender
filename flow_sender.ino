@@ -67,7 +67,7 @@ void setup()
   lcd.begin(16,2);
   lcd.clear();
   lcdPrint(0, 0, "Flow Monitor");
-  lcdPrint(0, 1, "Version 1.0");
+  lcdPrint(0, 1, "Version 1.1");
   delay(500);   
   
   // setup the internal LED for output to show when transmissions or EEPROM writes happen
