@@ -134,7 +134,7 @@ We  use one quarter of the wavelength which works out to  17.3 cm. </p>
         <p><img src="images/ninja_block.png" width="284" height="378"></p>
          <h3>Putting It All Together</h3>
          <p>The bulk of the wiring for this project is between the LCD display and the Arduino. If you're using an LCD shield, you won't need to worry about the LCD display and the additional push button, the display shield should just drop into place. Do be sure to double check that your LCD shield matches the pinouts that we're using here or you'll have to make changes in the code later to suit.</p>
-         <p><img src="images/flow_sender_layout.png" width="630" height="452"></p>
+         <p><img src="images/flow_sender_layout.png" width="620" height="445"></p>
          <p>Wiring details are as follows:</p>
          <h4>Flow Sensor:</h4>
          <p>Red to +5V<br>
@@ -159,21 +159,81 @@ We  use one quarter of the wavelength which works out to  17.3 cm. </p>
 </p>
 <h4>Reset Button</h4>
 <p>Pin 1 to ground<br>
-  Pin 2 to Arduino analog pin 0 using 10K pull down resistor
+  Pin 2 to Arduino analog pin 0 using 10K pull up resistor
 </p>
          <h2>The Sender Sketch</h2>
-         <pre>#include &lt;B00Sender.h&gt;
+
+        <p>Now that you have all the hardware hooked up, it's time to move on to the software that allows the sender Arduino to transmit the sensor data to the Ninja Block.</p>
+        <p>You'll find the latest version of the flow sender sketch in my GitHub repository here::</p>
+        <p><a href="https://github.com/GraemeWieden/flow_sender">https://github.com/GraemeWieden/flow_sender</a></p>
+        <p>Download the source, create a <code>flow_sender</code> folder in your sketchbook folder and place the <code>flow_sender.ino</code> file into it.</p>
+        <p> If you're not sure where your sketchbook directory is located, you can find it by selecting 'Preferences' from the 'File' menu in the Arduino IDE.</p>
+        <h3>Including the Libraries</h3>
+        <p>The flow sender makes use of the B00 protocol library to allow it to send the sensor data to the Ninja Block. You'll need to download the B00 protocol library from my GitHub repository here:</p>
+        <p><a href="https://github.com/GraemeWieden/B00_Protocol">https://github.com/GraemeWieden/B00_Protocol</a></p>
+<p>Place (or symbolic link) the <code>B00Sender</code> directory into your Arduino <code>libraries</code> directory located within your Arduino sketchbook directory.        </p>
+<p>You'll see the B00Sender library is included at the top of the <code>flow_sender.ino</code> file along with the standard EEPROM library (for retaining the total consumption when the Arduino is powered down) and the LiquidCrystal library (for showing info on the LCD display):</p>
+<pre><code>#include &lt;B00Sender.h&gt;
 #include &lt;EEPROM.h&gt;
-#include &lt;LiquidCrystal.h&gt;</pre>
-         <p>The EEPROM memory has a specified life of 100,000 write/erase cycles, so you may need to be careful about how often you write to it.</p>
-         <p>Reading from the sensor</p>
-         <p>The Ninja Block Arduino Firmware<br>
-        </p>
-         <p>Installation</p>
-         <p>Place (or symbolic link) the B00Sender directory into your Arduino libraries directory located within your Arduino sketchbook directory. </p>
-         <p><br>
-         </p>
-<p></p>
+#include &lt;LiquidCrystal.h&gt;</code></pre>
+<h3>Reading from the Sensor</h3>
+<p>The hall effect sensor sends pulses to the Arduino's digital pin 2 as liquid flows through it. The faster the flow, the more frequent the pulse. The flow sender sketch calculates the flow rate by monitoring the timing of the pulses. To do this, we attach an interrupt to the sensor pin and update a counter with each pulse:</p>
+<pre><code>pinMode(sensorPin, INPUT);
+digitalWrite(sensorPin, HIGH);
+attachInterrupt(sensorInterrupt, pulseCounter, FALLING);</code></pre>
+<p>The Interrupt Service Routine (ISR) is called <code>pulseCounter</code> and is a function defined like this:</p>
+<pre><code>void pulseCounter()
+{
+  sensorCount++;
+}</code></pre>
+<p>Note that the ISR should do as little as possible before returning as it will block other routines while it's running.</p>
+<p>Each time the main loop is executed, we can calculate the flow rate (and hence the total consumption) by using the <code>sensorCount</code> value and the predefined <code>calibrationFactor</code> for the particular sensor.</p>
+<pre><code>flowRate = ((1000.0 / (millis() - lastPollTime)) * sensorCount) / calibrationFactor;</code></pre>
+<h3>Transmitting the Data</h3>
+<p>After the flow rate and total consumption has been calculated, we periodically transmit it, but only if the data has changed since the last transmission. There's no point in cluttering up the RF spectrum any more than we need to! This is where the B00 protocol comes in. There are a number of ways the data could be sent to the Ninja Block, but for this project, we're going to send two separate values; a floating point number for the current flow rate in litres per minute and an unsigned long integer for the total litres consumed. These values will be sent as a B00 and a B02 message respectively like this:</p>
+<pre><code>sender.sendB00(flowRate); // floating point flow rate in L/min
+sender.sendB02(totalLitres); // unsigned long total value in litres</code></pre>
+         <h3>Storing the Total Consumption Value</h3>
+         <p>Power to the sensor could be interrupted at any time, so it's important for us to store the total consumption value in the Arduino's small amount of permanent EEPROM memory. Unfortunately, the EEPROM memory has a specified life of only 100,000 write/erase cycles, so we will need to be very careful about how often we write to it.</p>
+         <p>Every two minutes, we'll check if the total consumption has changed and if so, write it to the EEPROM memory using the <code>storeFloat</code> function.</p>
+        <p>Any time the Arduino is powered up, it'll re-load the <code>totalLitres</code> variable using the <code>readFloat</code> function.</p>
+        <h3>Resetting the Total Consumption</h3>
+        <p>Of course, we'll also need a wat to reset the total consumption value back to zero. To provide this functionality, but prevent it from happening too easily, we'll wait for the reset button to be held for 5 seconds.</p>
+        <p>While the button is being held a message will be shown on the LCD display and another message confirming the reset after the 5 second period.</p>
+         <h3>Setting the House and Channel Codes</h3>
+         <p>If you plan on having multiple sensors all communicating with your Ninja Block, you can assign each of them a different house code and channel code to uniquely identify where the data is coming from in the Ninja Blocks dashboard. The house code can range from 0 to 3 and the channel from 0 to 7. The settings can be changed here:</p>
+<pre><code>// set the house and channel codes here
+int houseCode = 0; // 0 to 3
+int channelCode = 0; // 0 to 7</code></pre>
+         <h3>Setting the Calibration Factor</h3>
+         <p>Each flow sensor has its own characteristics. The one I'm using in this project was rated at 4 pulses per second at one litre per minute of flow, and after a few tests it worked out pretty close at 3.97. You should run your own tests at a hig and low flow rate, average them out and adjust the value here:</p>
+<pre><code>float calibrationFactor = 4.0;</code></pre>         
+         <h3>Flashing the Arduino</h3>
+        <p>The last step in completing the sensor part of this project is compiling and uploading the sketch to the Arduino. Double check all your connections, make sure the Arduino board and port ar set correctly and hit the 'Upload' button in the Arduino IDE.</p>
+         <h3>Testing the Sensor</h3>
+         <p>After the sensor Arduino is flashed, you can check the sensor and connections are all working by gently blowing through the flow sensor. You'll hear the little wheel whizz around and if everything is set up correctly, the 'Flow' and 'Total' values shown on the LCD display should be updated every few seconds. </p>
+         <h2>The Ninja Block Arduino Firmware<br>
+        </h2>
+         <p>Once you're happy that you have the sensor/sender part of the project all working correctly, it's time to make the necessary modifications to the Ninja Block's internal Arduino so that it'll be capable of receiving the B00 protocol data and forwaring it to the Ninja Cloud dashboard.</p>
+         <h3>Getting the Ninja Block Arduino Master B00 Branch         </h3>
+         <p>There are currently two 'standard' firmwares available for the Ninja Arduino; the 'master' branch and the 'rewrite' branch. The master branch is the firmware installed on the Ninja Arduino by default. For this project, we'll be using a slightly modified version of the rewrite branch that supports the B00 protocol. You'll need to download this branch from my GitHub repository here:</p>
+         <p><a href="https://github.com/GraemeWieden/nb_arduino_master/tree/B00">https://github.com/GraemeWieden/nb_arduino_master/tree/B00</a>         </p>
+         <h3>Making room for it</h3>
+         <p>Unfortunately, for the BeagleBone  based Ninja Blocks, the standard master branch Arduino firmware is so large that it doesn't allow for any more features to be added without sacrificing some of the existing functionality. Because of this, I've chosen to cull out the hardware port code as I don't have anything physically connected to my BeagleBone  based Ninja Block. This is done by just returning at the start of the <code>doPort1</code>, <code>doPort2</code> and <code>doPort3</code> functions in <code>NinjaObjects.cpp</code> in the <code>NinjaObjects</code> directory. If you'd prefer to keep this functionality, you could instead bypass one of the other RF protocols that you're not using such as <code>doLacrosseTX3</code> or <code>doLacrosseWS2355</code>.</p>
+<h3>The B00 protocol handler</h3>
+<p>The new B00 protocol is added as 'protocol 6' and it is decoded the the <code>doB00</code> function of <code>NinjaObjects/NinjaObjects.cpp</code> in the case of the BeagleBone based Ninja Blocks or in <code>NinjaObjectsPi/NinjaPi.cpp</code> in the case of the Raspberry Pi based Ninja Blocks.</p>
+         <h3>Flashing the Ninja Block Arduino</h3>
+         <p>It may seem a bit daunting at first to update the firmware on your Arduino however the Ninja Block guys have put together a comprehensive set of instructions on how to do it at this page:</p>
+         <p><a href="http://shop.ninjablocks.com/blogs/how-to/8465455-compiling-the-ninja-blocks-arduino-firmware">http://shop.ninjablocks.com/blogs/how-to/8465455-compiling-the-ninja-blocks-arduino-firmware</a></p>
+         <p>These instruction refer to the standard firmware, so be sure to use the B00 firmware that you downloaded instead. Also note that the instructions shown may vary slightly depending on your operating system. Essentially the update process is as follows:</p>
+         <ul>
+           <li>Build the firmware image using the Arduino IDE into an <code>arduino.hex</code> file on your computer</li>
+           <li>Copy the file from your computer to your Ninja Block</li>
+           <li>Run the <code>ninja_update_arduino</code> tool to flash the Ninja Arduino<br>
+           </li>
+        </ul>
+        <p>If everything has gone according to plan, you should see two new devices appear in your Ninja Cloud dashboard after the Ninja Block has been restarted and has successfully reconnected to the Ninja server.</p>
+         <h2>Showing the Data on the Dashboard</h2>
          <p>&nbsp;</p>
         <div id="disqus_thread"></div>
 <script type="text/javascript">
@@ -197,7 +257,7 @@ We  use one quarter of the wavelength which works out to  17.3 cm. </p>
     <!-- FOOTER  -->
     <div id="footer_wrap" class="outer">
       <footer class="inner">
-        <p class="copyright">Flow sender maintained by <a href="https://github.com/GraemeWieden">GraemeWieden</a></p>
+        <p class="copyright">Maintained by <a href="https://github.com/GraemeWieden">Graeme Wieden</a></p>
         <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
       </footer>
   </div>
