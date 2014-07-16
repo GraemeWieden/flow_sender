@@ -31,7 +31,7 @@ byte buttonPin = A0; // analog pin to which the reset button is attached
 float calibrationFactor = 3.97;
 
 int houseCode = 1;
-int channelCode = 2;
+int channelCode = 1;
 
 // set up the sensor 
 volatile byte sensorCount;  
@@ -157,12 +157,12 @@ void loop()
     { 
       lastSendTime = millis();
       lastSentLitres = totalLitres;
-      // we're going to send the number of litres / 10 as that allows us to send a value 
-      // up to about 655 kilolitres with a precision of 10 litres.
-      // sender.sendB04(mLPerMin, totalLitres); // send litres for testing / debugging
-      sender.sendB04(mLPerMin, (unsigned int)(totalLitres / 10));
 
-      // alternatively, to send the data as two separate values, you could use the following
+      // this option is for wrapping up both values into a single transmission
+      // sender.sendB04(mLPerMin, (unsigned int)(totalLitres / 10));
+      // sending number of litres / 10 allows us to send a value up to about 655 kilolitres with a precision of 10 litres.
+
+      // preferred option, to send the data as two separate values
       sender.sendB00(flowRate); // floating point flow rate in L/min
       sender.sendB02(totalLitres); // unsigned long total value in litres
 
