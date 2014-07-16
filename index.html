@@ -36,7 +36,8 @@
         </p>
         <p>We're also going to use an LCD display to show the flow rate and consumption.</p>
         <p>We'll also want to be able to retain the total usage when the hardware is powered down and be able to reset the total water consumption value at any time by pressing and holding a hardware button.    </p>
-        <p>&lt;insert pic of completed project&gt;</p>
+        <p>You can put together the final unit however you like, to suit whatever environment it needs to operate within. Here's one option showing the completed flow sender Arduino, display and transmitter  encased with a clear front to keep it safe from the weather:</p>
+        <p><img src="images/flow_sender_complete.jpg" width="620" height="425"></p>
          <h2>           The Challenge<br>
         </h2>
          <p>The most difficult part of this project is finding a way to wirelessly send the data from the flow sensor to the Ninja Block in a format that can be interpreted and displayed on the dashboard. </p>
@@ -112,21 +113,64 @@
         <p>           Technically, you could use any frequency transmitter to send the sensor data, however for this project, we'll be using 433 MHz RF as that's what the Ninja Block uses.</p>
         <h2>The Hardware</h2>
         <h3>Arduino</h3>
+        <p>You can use most Arduino boards for this project, however one of the ATmega328 boards would be ideal. I'm using an Arduino UNO here as the physical size of the board isn't so critical when we're including the large LCD display, but a Nano would be great for a compact (and less expensive) version if you don't need the display component.</p>
+        <p><img src="images/arduino.png" width="442" height="315"></p>
         <h3>433 MHz Transmitter</h3>
-        <h3>Hall Effect Flow Sensor        </h3>
-        <h3>LED Display / Keypad</h3>
-         <p>&nbsp;</p>
-         <h2>The Software</h2>
+        <p>You'll need a 433 MHz RF transmitter for sending the sensor data to the Ninja Block. These little units are only a few dollars.</p>
+        <p><img src="images/rf_transmitter.png" width="85" height="170"></p>
+        <p>To get the best range out of the transmitter, you'll need to add an antenna if it doesn't already have one. The antenna should be  17.3 cm long. If you're wondering where that figure comes from, the formula is reasonably simple. The exact frequency of these transmitters is 433.92 MHz (433920000 cycles per second) so at (close to) the speed of light (299792458 metres per second) each cycle is:<br>
+1 / 433920000 * 299792458 = 0.69 metres or  69 cm<br>
+We  use one quarter of the wavelength which works out to  17.3 cm. </p>
+        <p>You can coil up the antenna however you'll get a better transmission range if it is left extended.</p>
+        <h3>LCD Display (Optional Keypad / Push Button)</h3>
+        <p>Although not essential, the flow sender can support an LCD display to show the current flow rate and the total consumption. We're also going to include a function to reset the total consumption by pressing and holding a button. The cheapest option to allow this is to use a 16x2 LCD module and a push button, however you can also use a commonly available LCD shield that has a number of push buttons already built into it.</p>
+        <p><img src="images/lcd_display.png" width="472" height="212"></p>
+        <h3>Hall Effect Flow Sensor </h3>
+        <p>The key to making this project work is the hall effect flow sensor. These are available from just a few dollars and they come in a variety of sizes. You'll need to choose one that is suitable for your needs that can be fitted into your plumbing at the point where you want to measure the flow. </p>
+        <p>If you're intending to use the project to measure anything larger than typical domestic garden water usage, be sure you check the specs of the sensor to make sure it can cope with the maximum flow capicity that you'll need.</p>
+        <p><img src="images/flow_sensor.png" width="321" height="223"></p>
+        <h3>Ninja Block</h3>
+        <p>One of the primary goals when developing the B00 protocol was to ensure it could talk to the Ninja Block with minimal changes required, and even though it's ideal for communicating via RF between Arduinos, for this project, we'll be sending the sensor data to a Ninja Block with a slightly modified Arduino firmware.</p>
+        <p><img src="images/ninja_block.png" width="284" height="378"></p>
+         <h3>Putting It All Together</h3>
+         <p>The bulk of the wiring for this project is between the LCD display and the Arduino. If you're using an LCD shield, you won't need to worry about the LCD display and the additional push button, the display shield should just drop into place. Do be sure to double check that your LCD shield matches the pinouts that we're using here or you'll have to make changes in the code later to suit.</p>
+         <p><img src="images/flow_sender_layout.png" width="630" height="452"></p>
+         <p>Wiring details are as follows:</p>
+         <h4>Flow Sensor:</h4>
+         <p>Red to +5V<br>
+           Black to ground<br>
+           Yellow to 
+         Arduino digital pin 2</p>
+         <p>Although not necessary, you can also include a 1K current limiting resistor between the flow sensor's data lead and digital pin 2 on the Arduino.</p>
+         <h4>LCD Display:</h4>
+         <p>VSS (LCD pin 1) to ground<br>
+         VDD (LCD pin 2) to +5V<br>
+         V0 (LCD pin 3) to ground via 1K resistor (you may need to adjust for your display's contrast)<br>
+         RS (LCD pin 4) to Arduino digital pin 8<br>
+         RW (LCD pin 5) to ground<br>
+         E (LCD pin 6) to Arduino digital pin 9<br>
+         D4, D5, D6, D7 (LCD pins 11, 12, 13, 14) to Arduino digital pins 4, 5, 6, 7<br>
+         A (LCD pin 15) to +5V via resistor if necessary - LCD backlight brightness<br>
+         K (LCD pin 16) to ground</p>
+         <h4>RF Transmitter</h4>
+<p>+5V to +5V<br>
+  GND to ground<br>
+  DATA to Arduino digital pin 3
+</p>
+<h4>Reset Button</h4>
+<p>Pin 1 to ground<br>
+  Pin 2 to Arduino analog pin 0 using 10K pull down resistor
+</p>
+         <h2>The Sender Sketch</h2>
          <pre>#include &lt;B00Sender.h&gt;
 #include &lt;EEPROM.h&gt;
 #include &lt;LiquidCrystal.h&gt;</pre>
          <p>The EEPROM memory has a specified life of 100,000 write/erase cycles, so you may need to be careful about how often you write to it.</p>
-         <p><br>
-         </p>
-         <p><br>
-           <br>
-           Installation<br>
-           Place (or symbolic link) the B00Sender directory into your Arduino libraries directory located within your Arduino sketchbook directory.</p>
+         <p>Reading from the sensor</p>
+         <p>The Ninja Block Arduino Firmware<br>
+        </p>
+         <p>Installation</p>
+         <p>Place (or symbolic link) the B00Sender directory into your Arduino libraries directory located within your Arduino sketchbook directory. </p>
          <p><br>
          </p>
 <p></p>
@@ -147,7 +191,8 @@
 
 
       </section>
-    </div>
+      <p>&nbsp;</p>
+  </div>
 
     <!-- FOOTER  -->
     <div id="footer_wrap" class="outer">
