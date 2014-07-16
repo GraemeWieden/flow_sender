@@ -28,7 +28,7 @@ byte buttonPin = A0; // analog pin to which the reset button is attached
 
 // The flow sensor outputs approximately 4 pulses per second at one litre per minute of flow.
 // This value will need to be modified for the particular flow sensor in use
-float calibrationFactor = 3.97;
+float calibrationFactor = 4.0;
 
 // set the house and channel codes here
 int houseCode = 0; // 0 to 3
