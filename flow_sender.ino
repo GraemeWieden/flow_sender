@@ -18,10 +18,6 @@ B00Sender sender;
 
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
-// set up the B00 protocol transmission values
-int TriggerPulse = 15000; // trigger time in microseconds
-int LongPulse = 1000; // time in microseconds for a long pulse
-int ShortPulse = LongPulse / 3; // time in microseconds for a short pulse
 
 // set up the hardware pins
 byte txPin = 3; // digital pin for transmitter
