@@ -12,7 +12,7 @@ For full step-by-step instructions on how to put together the hardware and softw
 
 [http://graemewieden.github.io/flow_sender/](http://graemewieden.github.io/flow_sender/)
 
-Full details of the B00 protocol can be found at the project home at:
+Full details of the B00 protocol can be found at:
 
 [https://github.com/graemewieden/B00_Protocol](https://github.com/graemewieden/B00_Protocol)
 
