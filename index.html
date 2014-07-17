@@ -234,7 +234,34 @@ int channelCode = 0; // 0 to 7</code></pre>
         </ul>
         <p>If everything has gone according to plan, you should see two new devices appear in your Ninja Cloud dashboard after the Ninja Block has been restarted and has successfully reconnected to the Ninja server.</p>
          <h2>Showing the Data on the Dashboard</h2>
-         <p>&nbsp;</p>
+        <p>You'll know when your sensor unit is successfully communicating with your  Ninja Block as you'll see two new devices appear in the Ninja Cloud dashboardsimilar to this:</p>
+        <p><img src="images/dashboard01.png" width="604" height="217"></p>
+        <p>Note that all the B00 protocol data is sent with a device ID (DID) of 225 which is 'Moisture' and a generic vendor ID of zero. At the time of writing, Ninja Blocks has only defined a set number of device IDs, and none of these represent truly generic data. Moisture is appropriate to use as it is considered to be a 'sensor' type device that also supports 'time series data' meaning you can look at the history of the sensor data. It's not particularly relevant what the device is called as we'll be using the new beta dashboard which allows us to rename the device widgets to whatever we choose.</p>
+        <p>If you haven't already, go to the Settings area then select the Preferences section and ensure the beta dashboard is enabled.</p>
+        <p><img src="images/enable_beta_dash.png" width="324" height="32"></p>
+        <p>Click on the beta dashboard and you should see the two devices in the device list on the left:</p>
+        <p><img src="images/dashboard02.png" width="486" height="170"></p>
+        <p>Notice the GUID which in this case are shown as B0000 and B0200. This indicates a B00 and a B02 device with a house code of 0 and a channel of 0. If you've chosen a different house code or channel then the last two digits will be different.</p>
+        <p>On the right of the screen, you'll see the two matching widgets along with any other widgets you may have:</p>
+        <p><img src="images/dashboard03.png" width="522" height="212"></p>
+        <p>At the moment, they're just displaying the general information about the device. </p>
+        <p>To give the widgets a quick makeover, click on their cog icon that appears in the top right corner as you hover the mouse over the widget. Choose the flow rate widget first which is the one that starts with B00.</p>
+        <p>You can edit the label of the widget by clicking in the top section (the yellowish row) that currently says 'Moisture'. In the screenshot below, I've renamed it to 'Flow Rate'.</p>
+         <p><img src="images/dashboard04.png" width="420" height="459"></p>
+         <p>Now you could customise the widget by editing each of the HTML, CSS and JavaScript sections, however to make things easier, you can just import an existing 'Gist' that configures the widget for you. For the flow rate widget, just paste the following URL into the 'Gist' section and click 'Import':</p>
+<pre><code>https://gist.github.com/GraemeWieden/49ac0c9200987c9195ea</code></pre>
+<p>Click on 'Save &amp; Close' to complete the widget customisation process.</p>
+<p>Now do the same for the total consumption widget:</p>
+<p><img src="images/dashboard05.png" width="420" height="459"></p>
+<p>But in this case, use the following Gist:</p>
+<pre><code>https://gist.github.com/GraemeWieden/b00a6e7c096158d4418d</code></pre>
+<p>You should now see something like this:</p>
+<p><img src="images/dashboard06.png" width="522" height="212"></p>
+<p>Of course, you can go in and change any of the code behind the widget at any time to style it however you please.</p>
+<h2>Thanks</h2>
+<p>I really hope this project will be of some help to all the Ninjas out there that have been asking to use generic sensor data with their Ninja Blocks. Remember that this is just one example of how the B00 protocol can be used to get data to the Ninja Cloud.</p>
+<p>Please feel free to use the comments section below to provide any feedback.</p>
+<p>&nbsp;</p>
         <div id="disqus_thread"></div>
 <script type="text/javascript">
     var disqus_shortname = 'graemewieden';
