@@ -19,7 +19,7 @@
           <a id="forkme_banner" href="https://github.com/GraemeWieden/flow_sender">View on GitHub</a>
 
           <h1 id="project_title">Wireless Water Flow Sender</h1>
-          <h2 id="project_tagline">Water flow and consumption RF sender for Ninja Block</h2>
+          <h2 id="project_tagline">Water Flow and Consumption RF Sender for Ninja Block</h2>
 
             <section id="downloads">
               <a class="zip_download_link" href="https://github.com/GraemeWieden/flow_sender/zipball/master">Download this project as a .zip file</a>
@@ -127,7 +127,7 @@ We  use one quarter of the wavelength which works out to  17.3 cm. </p>
         <p><img src="images/lcd_display.png" width="472" height="212"></p>
         <h3>Hall Effect Flow Sensor </h3>
         <p>The key to making this project work is the hall effect flow sensor. These are available from just a few dollars and they come in a variety of sizes. You'll need to choose one that is suitable for your needs that can be fitted into your plumbing at the point where you want to measure the flow. </p>
-        <p>If you're intending to use the project to measure anything larger than typical domestic garden water usage, be sure you check the specs of the sensor to make sure it can cope with the maximum flow capicity that you'll need.</p>
+        <p>If you're intending to use the project to measure anything larger than typical domestic garden water usage, be sure you check the specs of the sensor to make sure it can cope with the maximum flow capacity that you'll need.</p>
         <p><img src="images/flow_sensor.png" width="321" height="223"></p>
         <h3>Ninja Block</h3>
         <p>One of the primary goals when developing the B00 protocol was to ensure it could talk to the Ninja Block with minimal changes required, and even though it's ideal for communicating via RF between Arduinos, for this project, we'll be sending the sensor data to a Ninja Block with a slightly modified Arduino firmware.</p>
@@ -198,7 +198,7 @@ sender.sendB02(totalLitres); // unsigned long total value in litres</code></pre>
          <p>Every two minutes, we'll check if the total consumption has changed and if so, write it to the EEPROM memory using the <code>storeFloat</code> function.</p>
         <p>Any time the Arduino is powered up, it'll re-load the <code>totalLitres</code> variable using the <code>readFloat</code> function.</p>
         <h3>Resetting the Total Consumption</h3>
-        <p>Of course, we'll also need a wat to reset the total consumption value back to zero. To provide this functionality, but prevent it from happening too easily, we'll wait for the reset button to be held for 5 seconds.</p>
+        <p>Of course, we'll also need a way to reset the total consumption value back to zero. To provide this functionality, but prevent it from happening too easily, we'll wait for the reset button to be held for 5 seconds.</p>
         <p>While the button is being held a message will be shown on the LCD display and another message confirming the reset after the 5 second period.</p>
          <h3>Setting the House and Channel Codes</h3>
          <p>If you plan on having multiple sensors all communicating with your Ninja Block, you can assign each of them a different house code and channel code to uniquely identify where the data is coming from in the Ninja Blocks dashboard. The house code can range from 0 to 3 and the channel from 0 to 7. The settings can be changed here:</p>
@@ -206,17 +206,17 @@ sender.sendB02(totalLitres); // unsigned long total value in litres</code></pre>
 int houseCode = 0; // 0 to 3
 int channelCode = 0; // 0 to 7</code></pre>
          <h3>Setting the Calibration Factor</h3>
-         <p>Each flow sensor has its own characteristics. The one I'm using in this project was rated at 4 pulses per second at one litre per minute of flow, and after a few tests it worked out pretty close at 3.97. You should run your own tests at a hig and low flow rate, average them out and adjust the value here:</p>
+         <p>Each flow sensor has its own characteristics. The one I'm using in this project was rated at 4 pulses per second at one litre per minute of flow, and after a few tests it worked out pretty close at 3.97. You should run your own tests at a high and low flow rate, average them out and adjust the value here:</p>
 <pre><code>float calibrationFactor = 4.0;</code></pre>         
          <h3>Flashing the Arduino</h3>
-        <p>The last step in completing the sensor part of this project is compiling and uploading the sketch to the Arduino. Double check all your connections, make sure the Arduino board and port ar set correctly and hit the 'Upload' button in the Arduino IDE.</p>
+        <p>The last step in completing the sensor part of this project is compiling and uploading the sketch to the Arduino. Double check all your connections, make sure the Arduino board and port are set correctly and hit the 'Upload' button in the Arduino IDE.</p>
          <h3>Testing the Sensor</h3>
          <p>After the sensor Arduino is flashed, you can check the sensor and connections are all working by gently blowing through the flow sensor. You'll hear the little wheel whizz around and if everything is set up correctly, the 'Flow' and 'Total' values shown on the LCD display should be updated every few seconds. </p>
          <h2>The Ninja Block Arduino Firmware<br>
         </h2>
-         <p>Once you're happy that you have the sensor/sender part of the project all working correctly, it's time to make the necessary modifications to the Ninja Block's internal Arduino so that it'll be capable of receiving the B00 protocol data and forwaring it to the Ninja Cloud dashboard.</p>
+         <p>Once you're happy that you have the sensor/sender part of the project all working correctly, it's time to make the necessary modifications to the Ninja Block's internal Arduino so that it'll be capable of receiving the B00 protocol data and forwarding it to the Ninja Cloud dashboard.</p>
          <h3>Getting the Ninja Block Arduino Master B00 Branch         </h3>
-         <p>There are currently two 'standard' firmwares available for the Ninja Arduino; the 'master' branch and the 'rewrite' branch. The master branch is the firmware installed on the Ninja Arduino by default. For this project, we'll be using a slightly modified version of the rewrite branch that supports the B00 protocol. You'll need to download this branch from my GitHub repository here:</p>
+         <p>There are currently two 'standard' firmwares available for the Ninja Arduino; the 'master' branch and the 'rewrite' branch. The master branch is the firmware installed on the Ninja Arduino by default. For this project, we'll be using a slightly modified version of the master branch that supports the B00 protocol. You'll need to download this branch from my GitHub repository here:</p>
          <p><a href="https://github.com/GraemeWieden/nb_arduino_master/tree/B00">https://github.com/GraemeWieden/nb_arduino_master/tree/B00</a>         </p>
          <h3>Making Room for it</h3>
          <p>Unfortunately, for the BeagleBone  based Ninja Blocks, the standard master branch Arduino firmware is so large that it doesn't allow for any more features to be added without sacrificing some of the existing functionality. Because of this, I've chosen to cull out the hardware port code as I don't have anything physically connected to my BeagleBone  based Ninja Block. This is done by just returning at the start of the <code>doPort1</code>, <code>doPort2</code> and <code>doPort3</code> functions in <code>NinjaObjects.cpp</code> in the <code>NinjaObjects</code> directory. If you'd prefer to keep this functionality, you could instead bypass one of the other RF protocols that you're not using such as <code>doLacrosseTX3</code> or <code>doLacrosseWS2355</code>.</p>
