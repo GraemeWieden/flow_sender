@@ -4,6 +4,10 @@ Water flow sensor sender utility
 Arduino sketch to send flow rate and total consumption via RF B00 Protocol
 --------------------------------------------------------------------------
 
+Released under the MIT license.
+See license.md for more information.
+
+
 The goal of this project is to build a water flow sensor that can monitor instantaneous water flow rate and calculate total water consumption and transmit that data wirelessly to a Ninja Block or another Arduino.
 
 The custom B00 protocol is used to handle RF transmission of the sensor data.
